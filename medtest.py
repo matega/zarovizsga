@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import json, os.path
 
@@ -13,8 +13,8 @@ def dumpfejezet(tid, fid, name):
         for kerdes in kerdesek:
              khandlers[kerdes['feladatTipusId']](kerdes)
     except IOError as e:
-        print "I/O error({0}): {1} while trying to access {2}".format(e.errno, e.strerror, os.path.join('medtest', 'csp_'+str(tid), 'fejezet_'+str(fid)+'.json'))
-        print "Failed to gather "+ name
+        print("I/O error({0}): {1} while trying to access {2}".format(e.errno, e.strerror, os.path.join('medtest', 'csp_'+str(tid), 'fejezet_'+str(fid)+'.json')))
+        print("Failed to gather "+ name)
         
 def egyszeruhandler(kerdes):
 #    print kerdes
@@ -25,7 +25,7 @@ def tobbszoroshandler(kerdes):
     pass
 
 def furahandler(kerdes):
-    print kerdes['sorszam']
+    print(kerdes['sorszam'])
     
 def relhandler(kerdes):
 #    print kerdes
