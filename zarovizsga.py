@@ -31,35 +31,32 @@ def login():
     return r.cookies
 
 def crawlfejezet(cookiejar, fcsop, fejezet=None):
-    global kerdesek
     global jar
     kerdesgy=[]
     params={"fcsop[fcsop]":fcsop['fcsop'], "fcsop[fejezet]":fejezet['fej'] if fejezet else None, "feladatcsoport_kerdes_lista[kerdes_pager][pg]": 1}
     gotqs=20
-    while gotqs==20:
+    while gotqs>0:
         r=requests.get(baseurl, params=params, cookies=cookiejar)
         r.encoding="utf-8"
-        #TODO: Kérdések kigyűjtése
         soup=BeautifulSoup(r.text, "lxml")
-        kerdesek=soup.find_all('div', class_='kerdes_reszletes_belso')
-        gotqs=len(kerdesek)
-        for kerdes in kerdesek:
+        kerdess=soup.find_all('div', class_='kerdes_reszletes_belso')
+        gotqs=len(kerdess)
+        for kerdes in kerdess:
             pvf=kerdes.find('div', class_='probavizsga_feladat')
             if(pvf):
                 ktype=pvf.table['title']
             else:
-                print("III. Párosításos feladat")
+                kerdesgy.append(pairing(kerdes))
                 continue
             if(ktype==u"I. Egyszerü feleletválasztás GY."):
-                print(kerdes.find('div', class_='probavizsga_kerdes_leiras').get_text())
+                kerdesgy.append(simplechoice(kerdes))
             elif(ktype==u"II. Többszörös feleletválasztás GY"):
-                pass
+                kerdesgy.append(multiplechoice(kerdes))
             elif(ktype==u"IV. Relációanalizis GY"):
-                pass
+                kerdesgy.append(relanal(kerdes))
             else:
                 print("Ismeretlen feladattípus: "+ktype)
                 exit()
-        print(gotqs)
         params["feladatcsoport_kerdes_lista[kerdes_pager][pg]"]+=1
     r=requests.get(baseurl, params={"fcsop[vissza]":'true'}, cookies=cookiejar)
     return kerdesgy
@@ -68,7 +65,7 @@ def getfcsops(cookiejar):
     r=requests.get(baseurl, cookies=cookiejar)
     r.encoding="utf-8"
     soup=BeautifulSoup(r.text,"lxml")
-    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])]
+    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])][0:2]
 
 def getfejezets(fcsops, cookiejar):
     tasks=[]
@@ -81,12 +78,72 @@ def getfejezets(fcsops, cookiejar):
             print(str(len(fejezets))+u' fejezetet találtam a '+fcsop['title']+u' kategóriában.')
             for fejezet in fejezets:
                 print(fejezet['fej']+u': '+fejezet['title'])
-            tasks.append({'fcsop':fcsop, 'fejezet':fejezet})
+                tasks.append({'fcsop':fcsop, 'fejezet':fejezet})
         else:
             print(u'Nem találtam fejezeteket a '+fcsop['title']+u' kategóriában.')
             tasks.append({'fcsop':fcsop, 'fejezet': None})
         r=requests.get(baseurl, params={"fcsop[vissza]":'true'}, cookies=cookiejar)
     return tasks
+
+
+def simplechoice(div):
+    try:
+        kerdes={'type':1,
+                'sorszam':str(div.span.label.get_text(strip=True)),
+                'leiras':str(div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True)),
+                'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
+                'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
+                }
+        if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
+        return kerdes
+    except Exception as e:
+        print(div)
+        raise e
+
+def multiplechoice(div):
+    try:
+        kerdes={'type':2,
+                'sorszam':str(div.span.label.get_text(strip=True)),
+                'leiras':str(div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True)),
+                "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
+                'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
+                'elemi_valaszok':[ev.get_text(strip=True).replace('\xa0', ' ').split(None, 1) for ev in div.select("div.elemi_valaszok")]
+                }
+        if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
+        return kerdes
+    except Exception as e:
+        print(div)
+        raise e
+
+def relanal(div):
+    try:
+        kerdes={'type':3,
+                'sorszam':str(div.span.label.get_text(strip=True)),
+                'leiras':div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True).split(", mert ", 1),
+                "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
+                'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
+                }
+        if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
+        return kerdes
+    except Exception as e:
+        print(div)
+        raise e
+
+def pairing(div):
+    try:
+        kerdes={'type':4,
+                'leiras':div.find('div',class_='asszociacios_leiras').get_text(strip=True),
+                'kerdesek':[{
+                    'sorszam':tr.select('span.kerdes_csorszam_2')[0].get_text(strip=True),
+                    'leiras':tr.select('span.kerdes_leiras')[0].get_text(strip=True),
+                    'megoldas':tr.select('span.kerdes_csorszam_2')[1].get_text(strip=True)
+                    } for tr in div.select('div.asszociacios_feladat table:nth-of-type(1) tr')],
+                'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in [tr.contents[0],tr.contents[2]]] for tr in div.select('div.asszociacios_feladat table:nth-of-type(2) tr')]
+                }
+        return kerdes
+    except Exception as e:
+        print(div)
+        raise e
 
 def main():
     try:
@@ -95,7 +152,8 @@ def main():
         print("Nem sikerült bejelentkezni. A weboldal üzenete: "+str(e))
         exit()
     tasks=getfejezets(getfcsops(cookiejar),cookiejar)
-    kerdesek=[crawlfejezet(cookiejar, task['fcsop'], task['fejezet']) for task in tasks]
+    kerdesek=[{'focim':task['fcsop']['title'], 'alcim':task['fejezet']['title'] if task['fejezet'] else None, 'kerdesek':crawlfejezet(cookiejar, task['fcsop'], task['fejezet'])} for task in tasks]
+    print(kerdesek)
 
 if __name__ == "__main__":
     main()
