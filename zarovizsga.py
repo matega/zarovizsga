@@ -170,8 +170,8 @@ def pairing(div):
                     } for tr in div.select('div.asszociacios_feladat table:nth-of-type(1) tr')],
                 'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in [tr.contents[0],tr.contents[2]]] for tr in div.select('div.asszociacios_feladat table:nth-of-type(2) tr')]
                 }
-        kerdes['sorszam']=kerdes['kerdesek'][0]['sorszam']+'-'+re.search(r'(\d+)$', kerdes['kerdesek'][-1]['sorszam']).group(1)+"."
-        for k in kerdes['kerdesek']: k['sorszam']=re.search(r'(\d+)$',k['sorszam']).group(1)+"."
+        kerdes['sorszam']=kerdes['kerdesek'][0]['sorszam']+'-'+re.search(r'(\d+)$', kerdes['kerdesek'][-1]['sorszam']).group(1)
+        for k in kerdes['kerdesek']: k['sorszam']=re.search(r'(\d+)$',k['sorszam']).group(1)
         return kerdes
     except Exception as e:
         print(div)
