@@ -55,11 +55,10 @@ def crawlfejezet(cookiejar, fcsop, fejezet=None):
             pvf=kerdes.find('div', class_='probavizsga_feladat')
             if(pvf):
                 ktype=pvf.table['title']
-            else:
+            if(pvf is None):
                 debug("\tFound pairing question", 4)
                 kerdesgy.append(pairing(kerdes))
-                continue
-            if(ktype==u"I. Egyszerü feleletválasztás GY."):
+            elif(ktype==u"I. Egyszerü feleletválasztás GY."):
                 debug("\tFound simple question", 4)
                 kerdesgy.append(simplechoice(kerdes))
             elif(ktype==u"II. Többszörös feleletválasztás GY"):
@@ -70,10 +69,21 @@ def crawlfejezet(cookiejar, fcsop, fejezet=None):
                 kerdesgy.append(relanal(kerdes))
             else:
                 raise Exception("Ismeretlen kérdéstípus!")
+            try:
+                if(kerdesgy[-2]['sorszam']==kerdesgy[-1]['sorszam']):
+                    del kerdesgy[-1]
+                    debug("Discarding duplicate question "+kerdesgy[-1]['sorszam'])
+                if(kerdesgy[-2]['magyarazat']==kerdesgy[-1]['magyarazat']):
+                    kerdesgy[-2]['magyarazat']="Magyarázat: ld. következő kérdés"
+                    debug("Discarding duplicate explanation for question "+kerdesgy[-1]['sorszam'])
+            except IndexError:
+                pass
+            except KeyError:
+                pass
         debug(str(gotqs)+' questions gathered on this page.', 2)
         params["feladatcsoport_kerdes_lista[kerdes_pager][pg]"]+=1
     debug(str(len(kerdesgy))+' questions gathered in this '+('sub' if fejezet else '')+'category.', 1)
-    debug('Exiting category '+fcsop['title']+((", subcategory "+fejezet['title']) if fejezet else ""), 2)
+    debug('Exiting category "'+fcsop['title']+(('", subcategory "'+fejezet['title']+'"') if fejezet else ""), 2)
     r=requests.get(baseurl, params={"fcsop[vissza]":'true'}, cookies=cookiejar)
     return kerdesgy
 
@@ -92,7 +102,7 @@ def getfejezets(fcsop, cookiejar):
         debug('Found '+str(len(fejezets))+' subcategories in category "'+fcsop['title']+u'"')
         return fejezets
     else:
-        print(u'No subcategories found in ctegory "'+fcsop['title']+u'"')
+        print(u'No subcategories found in category "'+fcsop['title']+u'"')
         return [None]
     r=requests.get(baseurl, params={"fcsop[vissza]":'true'}, cookies=cookiejar)
 
@@ -112,7 +122,7 @@ def simplechoice(div):
         raise e
 
 def simplechoicets(k):
-    return r'\multicolumn{3}{|p{\textwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\textwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Magyarázat: "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
+    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{ "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
 
 def multiplechoice(div):
     try:
@@ -130,7 +140,7 @@ def multiplechoice(div):
         raise e
     
 def multiplechoicets(k):
-    return r'\multicolumn{3}{|p{\textwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\textwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['elemi_valaszok']])+'\\\\\n\\hline\n'+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\textwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Magyarázat: "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
+    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['elemi_valaszok']])+'\\\\\n\\hline\n'+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{ "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
 
 def relanal(div):
     try:
@@ -147,7 +157,7 @@ def relanal(div):
         raise e
 
 def relanalts(k):
-    return r'\multicolumn{3}{|p{\textwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\textwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Magyarázat: "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
+    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{ "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
 
 def pairing(div):
     try:
@@ -168,7 +178,7 @@ def pairing(div):
         raise e
 
 def pairingts(k):
-    return r'\multicolumn{3}{|p{\textwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(l['sorszam'])+'&'+latex(l['leiras'])+'&'+latex(l['megoldas']) for l in k['kerdesek']])+'\\\\\n\\hline\n'+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\textwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n"
+    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(l['sorszam'])+'&'+latex(l['leiras'])+'&'+latex(l['megoldas']) for l in k['kerdesek']])+'\\\\\n\\hline\n'+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n"
 
 typesetters=[lambda x:"", simplechoicets, multiplechoicets, relanalts, pairingts]
 
@@ -183,9 +193,17 @@ def latex(sz):
                r'}':'\}',
                r'~':r'$\sim$',
                '\\':r'\textbackslash',
-               'μ':'$\\mu$',
-               'α':'$\\alpha$',
-               'β':'$\\beta$'}
+               #'μ':'$\\mu$',
+               #'α':'$\\alpha$',
+               #'β':'$\\beta$',
+               #'γ':'$\\gamma$',
+               #'°':'$^{\\circ}$',
+               #'→':'$\,\\to\,$',
+               #'±':"$\\pm$",
+               #'≥':'$\\geq$',
+               #'≤':'$\\leq$',
+               #'½':'$\\frac{1}{2}$'
+               }
     substrs = sorted(replacements.keys(), key=len, reverse=True)
     regexp = re.compile('|'.join(map(re.escape, substrs)))
     return regexp.sub(lambda match: replacements[match.group(0)], sz)
@@ -214,18 +232,21 @@ def main():
             json.dump(kerdesek, f)
             debug('Exiting without typesetting')
         exit()
+    debug('Post-processing')
     debug('Typesetting')
     with open(args.output, 'w') as f:
-        f.write(r'''\documentclass[10pt]{book}
+        f.write(r'''\documentclass[openany]{book}
 \usepackage[utf8]{inputenc}
 \usepackage[magyar]{babel}
 \usepackage{t1enc}
 \usepackage{tabularx}
 \usepackage{calc}
+\usepackage{fontspec}
 \usepackage[a4paper,margin=.5in,lmargin=1in]{geometry}
 \pagestyle{headings}
 \setlength{\parindent}{0pt}
 \title{Záróvizsga kérdések}
+\setmainfont{FreeSans}
 \begin{document}
 \maketitle
 \tableofcontents
@@ -235,10 +256,10 @@ def main():
             for fejezet in fcsop['fejezets']:
                 if(fejezet['fejezet']):
                     f.write(r'\section{'+fejezet['fejezet']['title']+'}\n')
-                    for kerdes in fejezet['kerdesek']:
-                        f.write('\\noindent\n\\begin{tabular}{|p{1.5em}p{\\textwidth - 3em - 6\\tabcolsep - 2\\arrayrulewidth}p{1.5em}|}\n\\hline\n\\multicolumn{3}{|p{\\textwidth - 2\\tabcolsep -2\\arrayrulewidth}|}{'+kerdes['sorszam']+'}\\\\\n\\hline\n')
-                        f.write(typesetters[kerdes['type']](kerdes))
-                        f.write('\\end{tabular}\n\n')
+                for kerdes in fejezet['kerdesek']:
+                    f.write('\\begin{tabular}{|p{1.5em}p{\\columnwidth - 3em - 6\\tabcolsep - 2\\arrayrulewidth}p{1.5em}|}\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep -2\\arrayrulewidth}|}{'+kerdes['sorszam']+'}\\\\\n\\hline\n')
+                    f.write(typesetters[kerdes['type']](kerdes))
+                    f.write('\\end{tabular}\n\n')
         f.write(r'\end{document}')
     
 
