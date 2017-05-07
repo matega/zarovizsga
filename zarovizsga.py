@@ -91,7 +91,7 @@ def getfcsops(cookiejar):
     r=requests.get(baseurl, cookies=cookiejar)
     r.encoding="utf-8"
     soup=BeautifulSoup(r.text,"lxml")
-    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])][8:10]
+    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])]
 
 def getfejezets(fcsop, cookiejar):
     r=requests.get(baseurl, params={"fcsop[fcsop]":fcsop['fcsop']}, cookies=cookiejar)
