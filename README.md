@@ -24,8 +24,8 @@ Használat: Másold az Androidos alkalmazás adatait (`/sdcard/medtest/(hex kön
 * Képes bejelentkezni az oldalra (enélkül nem lehet letölteni a kérdéseket)
 * Képes feltérképezni a kategóriákat és a kategóriákon belüli fejezeteket
 * Képes feltérképezni a kategóriák kérdéseit
-* TODO: Kérdések kigyűjtése az oldalakból
-* TODO: Kimenet PDF-ben (valószínűleg HTML-en keresztül)
-* TODO: szebb kód
+* Kérdések kigyűjtése az oldalakból
+* Kimenet LaTeX formátumban (`lualatex`-szel fordítató PDF-be)
+* szebb kód
 
-Használat: Futtasd a programot. Jelentkezz be. 
+Segítség: `./zarovizsga.py --help` 
