@@ -91,7 +91,7 @@ def getfcsops(cookiejar):
     r=requests.get(baseurl, cookies=cookiejar)
     r.encoding="utf-8"
     soup=BeautifulSoup(r.text,"lxml")
-    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])]
+    return [{'title': div.a.string.strip(), 'fcsop':fcsop_re.search(div.a['href']).group(1)} for div in soup.find_all("div", class_="feladatcsoportok") if fcsop_re.search(div.a['href'])][8:10]
 
 def getfejezets(fcsop, cookiejar):
     r=requests.get(baseurl, params={"fcsop[fcsop]":fcsop['fcsop']}, cookies=cookiejar)
@@ -111,7 +111,7 @@ def simplechoice(div):
     try:
         kerdes={'type':1,
                 'sorszam':str(div.span.label.get_text(strip=True)),
-                'leiras':str(div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True)),
+                'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
                 }
@@ -128,7 +128,7 @@ def multiplechoice(div):
     try:
         kerdes={'type':2,
                 'sorszam':str(div.span.label.get_text(strip=True)),
-                'leiras':str(div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True)),
+                'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
                 'elemi_valaszok':[ev.get_text(strip=True).replace('\xa0', ' ').split(None, 1) for ev in div.select("div.elemi_valaszok")]
@@ -146,7 +146,7 @@ def relanal(div):
     try:
         kerdes={'type':3,
                 'sorszam':str(div.span.label.get_text(strip=True)),
-                'leiras':div.find('div',class_='probavizsga_kerdes_leiras').get_text(strip=True),
+                'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
                 }
