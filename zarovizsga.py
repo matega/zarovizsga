@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import requests, re, getpass, configparser, json, argparse, sys, datetime
+import requests, re, getpass, configparser, json, argparse, sys, datetime, random, string, time
 from bs4 import BeautifulSoup
 
 fcsop_re=re.compile(r'fcsop\[fcsop\]=(\d+)');
@@ -12,18 +12,69 @@ kerdesek=[]
 class LoginException(Exception):
     pass
 
-def login():
+def randomstring(n):
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(n))
+
+def ghostlogin():
+    gmapi="http://api.guerrillamail.com/ajax.php"
+    zvregurl="http://aok.zarovizsga.hu/registration/"
+    user=randomstring(10)
+    password=randomstring(10)
+    debug("Choosing random username "+user)
+    debug("Choosing random password "+password)
+    debug("Creating temporary e-mail address...")
+    s=requests.session()
+    r=s.get(gmapi, params={'f':'get_email_address','agent':'zarovizsgapy','ip':'127.0.0.1','lang':'en','SUBSCR':''})
+    debug(s.cookies,2)
+    rarr=json.loads(r.text)
+    email=rarr['email_addr']
+    debug("Got temporary e-mail address: "+email)
+    r=s.post(zvregurl, data={"doregistration[reg_type]":"1","doregistration[reg_data]":"TOVÁBB"})
+    debug(s.cookies,2)
+    r=s.post(zvregurl, data={"doregistration[name]":user,"doregistration[password]":password, "doregistration[password_re]":password,"doregistration[email]":rarr['email_addr'],"doregistration[egyetemek]_name":"Semmelweis","doregistration[egyetemek]":"1","doregistration[egyetem_kar]":"1","doregistration[reg_check]":"KÜLDÉS"})
+    r=s.post(zvregurl,data={"doregistration[store_reg_data]":"TOVÁBB"})
+    gotreglink=False
+    for i in range(30):
+        debug("Checking e-mail... ("+str(i)+")")
+        r=s.get(gmapi, params={'f':'check_email','agent':'zarovizsgapy','ip':'127.0.0.1','seq':0})
+        rarr=json.loads(r.text)
+        for msg in rarr['list']:
+            if(msg["mail_from"]=="info@zarovizsga.hu"):
+                r=s.get(gmapi, params={'f':'fetch_email','agent':'zarovizsgapy','ip':'127.0.0.1','email_id':msg['mail_id']})
+                msgarr=json.loads(r.text)
+                btr=BeautifulSoup(msgarr['mail_body'],"lxml")
+                reglink=btr.a['href']
+                debug("Got registration link: "+reglink)
+                gotreglink=True
+                break
+        if(gotreglink): break
+        time.sleep(10)
+    if not gotreglink: raise LoginException()
+    r=s.get(reglink)
+    r.encoding="UTF-8"
+    resbs=BeautifulSoup(r.text,"lxml")
+    try:
+        print(resbs.select('div.reg_message')[0].get_text(strip=True))
+    except:
+        pass
+    return login(email, password)
+
+def login(user=None, password=None):
     global jar
     debug("Preparing to log in", 3)
-    try:
-        cp=configparser.RawConfigParser()
-        cp.read('login.ini')
-        login={'login[username]':cp.get('zarovizsga', 'user'),'login[password]':cp.get('zarovizsga','pass'),'login[loggedin]':'BELÉP'}
+    if(user is None or password is None):
+        try:
+            cp=configparser.RawConfigParser()
+            cp.read('login.ini')
+            login={'login[username]':cp.get('zarovizsga', 'user'),'login[password]':cp.get('zarovizsga','pass'),'login[loggedin]':'BELÉP'}
+            debug("Login info read from file", 2)
+        except:
+            debug("Failed to read login.ini", 2)
+            login={'login[username]':input('E-mail cím? '),'login[password]':getpass.getpass('Jelszó? '),'login[loggedin]':'BELÉP'}
+        debug("Login array: "+str(login), 3)
+    else:
+        login={'login[username]':user,'login[password]':password,'login[loggedin]':'BELÉP'}
         debug("Login info read from file", 2)
-    except:
-        debug("Failed to read login.ini", 2)
-        login={'login[username]':input('E-mail cím? '),'login[password]':getpass.getpass('Jelszó? '),'login[loggedin]':'BELÉP'}
-    debug("Login array: "+str(login), 3)
     try:
         debug("Attempting login", 2)
         r=requests.post('http://aok.zarovizsga.hu/login_box/',data=login)
@@ -215,7 +266,10 @@ def debug(info, level=1):
 def main():
     if(args.typeset_only is None):
         try:
-            cookiejar=login()
+            if(not args.ghost):
+                cookiejar=login()
+            else:
+                cookiejar=ghostlogin()
         except LoginException as e:
             print("Nem sikerült bejelentkezni. A weboldal üzenete: "+str(e))
             exit()
@@ -270,5 +324,6 @@ if __name__ == "__main__":
     group.add_argument('-r', '--retrieve-only', help='Csak a kérdések letöltése és kiírása .json formátumba', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
     group.add_argument('-t', '--typeset-only', help='A letöltött .json formátumból .pdf készítése', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
     parser.add_argument('-o', '--output', help='Kimeneti fájl', default='zarovizsga.tex')
+    parser.add_argument('-g', '--ghost', help='Guerillamail használata, ideiglenes felhasználóval', action='store_true')
     args=parser.parse_args()
     main()
