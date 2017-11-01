@@ -126,7 +126,7 @@ def crawlfejezet(cookiejar, fcsop, fejezet=None):
                     debug("Discarding duplicate question "+kerdesgy[-1]['sorszam'])
                 if(kerdesgy[-2]['magyarazat']==kerdesgy[-1]['magyarazat']):
                     kerdesgy[-2]['magyarazat']="Magyarázat: ld. következő kérdés"
-                    debug("Discarding duplicate explanation for question "+kerdesgy[-1]['sorszam'])
+                    debug("Discarding duplicate explanation for question "+kerdesgy[-2]['sorszam'])
             except IndexError:
                 pass
             except KeyError:
@@ -165,6 +165,7 @@ def simplechoice(div):
                 'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
+                'statusz':getkstat(div)
                 }
         if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
         return kerdes
@@ -182,7 +183,8 @@ def multiplechoice(div):
                 'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
-                'elemi_valaszok':[ev.get_text(strip=True).replace('\xa0', ' ').split(None, 1) for ev in div.select("div.elemi_valaszok")]
+                'elemi_valaszok':[ev.get_text(strip=True).replace('\xa0', ' ').split(None, 1) for ev in div.select("div.elemi_valaszok")],
+                'statusz':getkstat(div)
                 }
         if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
         return kerdes
@@ -200,6 +202,7 @@ def relanal(div):
                 'leiras':'\n\n'.join(list(map(lambda d: d.get_text(strip=True), div.select('div.probavizsga_kerdes_leiras, div.probavizsga_esetleiras')))),
                 "valaszok":[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in tr.contents[1:]] for tr in div.select("div.probavizsga_feladat table tr")],
                 'megoldas':[td.get_text(strip=True).replace('\xa0',' ').strip() for td in div.select("div.megoldas_magyarazat table tr:nth-of-type(2) > td")],
+                'statusz':getkstat(div)
                 }
         if len(div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td'))>0: kerdes['magyarazat']=div.select('div.megoldas_magyarazat table tr:nth-of-type(4) > td')[0].get_text(strip=True).strip()
         return kerdes
@@ -208,7 +211,7 @@ def relanal(div):
         raise e
 
 def relanalts(k):
-    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{ "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
+    return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{<Relációanalízis>}'+"\\\\\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{Megoldás: "+latex(" ".join(k['megoldas']))+"}\\\\\n"+(("\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep - 2\\arrayrulewidth}|}{ "+latex(k['magyarazat'])+"}\\\\\n") if 'magyarazat' in k else "")+"\\hline\n"
 
 def pairing(div):
     try:
@@ -217,9 +220,10 @@ def pairing(div):
                 'kerdesek':[{
                     'sorszam':tr.select('span.kerdes_csorszam_2')[0].get_text(strip=True),
                     'leiras':tr.select('span.kerdes_leiras')[0].get_text(strip=True),
-                    'megoldas':tr.select('span.kerdes_csorszam_2')[1].get_text(strip=True)
+                    'megoldas':tr.select('span.kerdes_csorszam_2')[1].get_text(strip=True),
                     } for tr in div.select('div.asszociacios_feladat table:nth-of-type(1) tr')],
-                'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in [tr.contents[0],tr.contents[2]]] for tr in div.select('div.asszociacios_feladat table:nth-of-type(2) tr')]
+                'valaszok':[[td.get_text(strip=True).replace('\xa0',' ').strip() for td in [tr.contents[0],tr.contents[2]]] for tr in div.select('div.asszociacios_feladat table:nth-of-type(2) tr')],
+                'statusz':getkstat(div)
                 }
         kerdes['sorszam']=kerdes['kerdesek'][0]['sorszam']+'-'+re.search(r'(\d+)$', kerdes['kerdesek'][-1]['sorszam']).group(1)
         for k in kerdes['kerdesek']: k['sorszam']=re.search(r'(\d+)$',k['sorszam']).group(1)
@@ -232,6 +236,67 @@ def pairingts(k):
     return r'\multicolumn{3}{|p{\columnwidth - 2\tabcolsep - 2\arrayrulewidth}|}{'+latex(k['leiras'])+"}\\\\\n"+'\\\\\n'.join([latex(l['sorszam'])+'&'+latex(l['leiras'])+'&'+latex(l['megoldas']) for l in k['kerdesek']])+'\\\\\n\\hline\n'+'\\\\\n'.join([latex(v[0])+r"&\multicolumn{2}{p{\columnwidth - 1.5em - 4\tabcolsep - 2\arrayrulewidth}|}{"+latex(v[1])+r'}' for v in k['valaszok']])+"\\\\\n\\hline\n"
 
 typesetters=[lambda x:"", simplechoicets, multiplechoicets, relanalts, pairingts]
+
+def getkstat(div):
+    try:
+        statspan=div("span", class_=lambda c:c.startswith('kerdes_statusz_') if c is not None else False)[0]
+        for c in statspan["class"]:
+            if c.startswith('kerdes_statusz'):
+                debug("Kérdés státusza: "+c[15:], 2)
+                return c[15:]
+    except IndexError as e:
+        debug("Nincs megadva kérdésstátusz!", 2)
+        return '0'
+
+def writestats(k, f):
+    numttot={}
+    numtot=0
+    for fcsop in kerdesek:
+        numtfc={}
+        numfc=0
+        for fejezet in fcsop["fejezets"]:
+            numtfe={}
+            numfe=0
+            for kerdes in fejezet["kerdesek"]:
+                if(kerdes['statusz'] not in numttot.keys): numttot[kerdes['statusz']]=0
+                if(kerdes['statusz'] not in numtfc.keys): numtfc[kerdes['statusz']]=0
+                if(kerdes['statusz'] not in numtfe.keys): numtfe[kerdes['statusz']]=0
+                numttot[kerdes["statusz"]]+=1
+                numtfc[kerdes["statusz"]]+=1
+                numtfe[kerdes["statusz"]]+=1
+                numtot+=1
+                numtfc+=1
+                numtfe+=1
+
+def typeset(kerdesek):
+    debug("Typesetting")
+    with open(args.output, 'w') as f:
+        f.write(r'''\documentclass[openany]{book}
+\usepackage[utf8]{inputenc}
+\usepackage[magyar]{babel}
+\usepackage{t1enc}
+\usepackage{tabularx}
+\usepackage{calc}
+\usepackage{fontspec}
+\usepackage[a4paper,margin=.5in,lmargin=1in]{geometry}
+\pagestyle{headings}
+\setlength{\parindent}{0pt}
+\title{Záróvizsga kérdések}
+\setmainfont{FreeSans}
+\begin{document}
+\maketitle
+\tableofcontents
+''')
+        for fcsop in kerdesek:
+            f.write(r'\chapter{'+fcsop['fcsop']['title']+'}\n')
+            for fejezet in fcsop['fejezets']:
+                if(fejezet['fejezet']):
+                    f.write(r'\section{'+fejezet['fejezet']['title']+'}\n')
+                for kerdes in fejezet['kerdesek']:
+                        f.write('\\begin{tabular}{|p{1.5em}p{\\columnwidth - 3em - 6\\tabcolsep - 2\\arrayrulewidth}p{1.5em}|}\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep -2\\arrayrulewidth}|}{'+kerdes['sorszam']+'}\\\\\n\\hline\n')
+                        f.write(typesetters[kerdes['type']](kerdes))
+                        f.write('\\end{tabular}\n\n')
+        f.write(r'\end{document}')
 
 def latex(sz):
     replacements = {r'#':r'\#',
@@ -280,50 +345,27 @@ def main():
         with open(args.typeset_only, 'r') as f:
             debug('Opening file '+args.typeset_only)
             kerdesek=json.load(f)
-    if(args.retrieve_only):
-        with open(args.retrieve_only, 'w') as f:
-            debug('Writing '+args.retrieve_only)
+    if(args.retrieve_only or args.store_json):
+        with open((args.retrieve_only if args.retrieve_only else args.store_json), 'w') as f:
+            debug('Writing '+(args.retrieve_only if args.retrieve_only else args.store_json))
             json.dump(kerdesek, f)
-            debug('Exiting without typesetting')
-        exit()
-    debug('Post-processing')
-    debug('Typesetting')
-    with open(args.output, 'w') as f:
-        f.write(r'''\documentclass[openany]{book}
-\usepackage[utf8]{inputenc}
-\usepackage[magyar]{babel}
-\usepackage{t1enc}
-\usepackage{tabularx}
-\usepackage{calc}
-\usepackage{fontspec}
-\usepackage[a4paper,margin=.5in,lmargin=1in]{geometry}
-\pagestyle{headings}
-\setlength{\parindent}{0pt}
-\title{Záróvizsga kérdések}
-\setmainfont{FreeSans}
-\begin{document}
-\maketitle
-\tableofcontents
-''')
-        for fcsop in kerdesek:
-            f.write(r'\chapter{'+fcsop['fcsop']['title']+'}\n')
-            for fejezet in fcsop['fejezets']:
-                if(fejezet['fejezet']):
-                    f.write(r'\section{'+fejezet['fejezet']['title']+'}\n')
-                for kerdes in fejezet['kerdesek']:
-                    f.write('\\begin{tabular}{|p{1.5em}p{\\columnwidth - 3em - 6\\tabcolsep - 2\\arrayrulewidth}p{1.5em}|}\n\\hline\n\\multicolumn{3}{|p{\\columnwidth - 2\\tabcolsep -2\\arrayrulewidth}|}{'+kerdes['sorszam']+'}\\\\\n\\hline\n')
-                    f.write(typesetters[kerdes['type']](kerdes))
-                    f.write('\\end{tabular}\n\n')
-        f.write(r'\end{document}')
-    
+    if(args.info):
+        with open(args.info,w) as f:
+            debug('Writing stats into '+args.info)
+            writestats(kerdesek, f)
+    if(args.retrieve_only):
+        debug('Exiting without typesetting')
+    if(not args.retrieve_only): typeset(kerdesek)
 
 if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', help='Bőbeszédű mód hibakereséshez', action="count", default=0)
     group=parser.add_mutually_exclusive_group()
     group.add_argument('-r', '--retrieve-only', help='Csak a kérdések letöltése és kiírása .json formátumba', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
-    group.add_argument('-t', '--typeset-only', help='A letöltött .json formátumból .pdf készítése', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
+    group.add_argument('-s', '--store-json', help='A kérdések letöltése és kiírása .json formátumba, folytatás', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
+    group.add_argument('-t', '--typeset-only', help='A letöltött .json formátumból .tex készítése', metavar="FILENAME", nargs='?', const='zarovizsgakerdesek.json', default=None)
     parser.add_argument('-o', '--output', help='Kimeneti fájl', default='zarovizsga.tex')
     parser.add_argument('-g', '--ghost', help='Guerillamail használata, ideiglenes felhasználóval', action='store_true')
+    parser.add_argument('-i', '--info', help='Statisztika létrehozása a kérdések státuszáról fájlba', metavar="FILENAME", const="zarovizsgastats.json", nargs='?', default=None)
     args=parser.parse_args()
     main()
