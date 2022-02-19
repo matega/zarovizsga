@@ -1,6 +1,8 @@
-# SE-ÁOK záróvizsga kigyűjtő
 
-Work in progress
+
+# Archivált projekt: SE-ÁOK záróvizsga kigyűjtő
+
+A zarovizsga.hu oldal már más formátumot használ, ezért ez a program nem fog működni. A MedTest alkalmazás adataihoz való hozzáférés nem is készült el.
 
 ## Mi ez?
 
